@@ -4,7 +4,7 @@
 
 Zero backend. Zero API keys. Zero build step. One HTML file, deployed on GitHub Pages, running entirely in the browser.
 
-🔗 **Live demo:** [add your GitHub Pages link here]
+🔗 **Live demo:** [https://vjpatz.github.io/vj-geointel/]
 🎥 **Video walkthrough:** [add your YouTube link here]
 
 ---
