@@ -2,19 +2,15 @@
 
 **Geospatial Intelligence Platform** — click anywhere on Earth to get live environmental, weather, and air quality data for that coordinate.
 
-<<<<<<< HEAD
 Zero backend. Zero API keys. Zero build step. One HTML file, deployed on GitHub Pages, running entirely in the browser.
 
 🔗 **Live demo:** [add your GitHub Pages link here]
 🎥 **Video walkthrough:** [add your YouTube link here]
 
-=======
->>>>>>> 72654aa41c509d14ebe0c71f79f587ee040d1a4e
 ---
 
 ## What It Does
 
-<<<<<<< HEAD
 VJ-GeoIntel is a single-file HTML application powered by Leaflet.js and free, open-data APIs. Click any point on the map and get a full intelligence panel in seconds.
 
 **Data retrieved per location:**
@@ -24,16 +20,6 @@ VJ-GeoIntel is a single-file HTML application powered by Leaflet.js and free, op
 - 🏔️ **Geography** — Elevation, Soil temperature, Coordinates (Decimal + DMS for India)
 - 🇮🇳 **India-specific** — CPCB AQI (official sub-index method), Monsoon season banner, DMS coordinate display
 - 🕐 **Live local clock** — ticks in real time using the location's actual UTC offset, not a cached snapshot
-=======
-VJ-GeoIntel is a single-file HTML application powered by Leaflet.js and free open-data APIs. Click any point on the map and get a full intelligence panel in seconds — no API keys, no backend, no sign-up.
-
-**Data retrieved per location:**
-- 🌫️ Air Quality — US AQI, EU AQI, PM2.5, PM10, O₃, NO₂, SO₂, CO, NH₃, Dust
-- 🌡️ Weather — Temperature, Feels like, Humidity, Dew point, Wind, Gusts, UV Index, Pressure, Visibility, Precipitation, Cloud cover
-- 🌅 Solar — Sunrise, Sunset, Daylight duration
-- 🏔️ Geography — Elevation, Soil temperature, Coordinates (Decimal + DMS for India)
-- 🇮🇳 India-specific — CPCB AQI (official sub-index method), Monsoon season banner, DMS coordinate display
->>>>>>> 72654aa41c509d14ebe0c71f79f587ee040d1a4e
 
 ---
 
@@ -52,7 +38,6 @@ VJ-GeoIntel is a single-file HTML application powered by Leaflet.js and free ope
 | Share Link | Copies a URL with `?lat=&lng=` params — opens and auto-loads on visit |
 | Copy Coords | Copy decimal coordinates to clipboard in one click |
 | URL State | Location pushed to browser history — back/forward works |
-<<<<<<< HEAD
 | Request Timeouts | Any hung API call aborts after 12s with a clear error, instead of spinning forever |
 
 ---
@@ -137,36 +122,10 @@ Pull requests, forks, and "I built X on top of this" shout-outs are all welcome.
 ## License
 
 Personal / educational use. All data comes from open, free APIs — respect their individual terms if you build on this:
-=======
-
-
----
-
-
-
-## Data Sources & Accuracy
-
-- **Weather & AQI** — Open-Meteo uses ERA5 reanalysis + forecast models. Updates hourly.
-- **Geocoding** — Nominatim reverse-geocodes coordinates to human-readable names. Street-level for populated areas, district-level fallback for remote regions.
-- **Elevation** — 90m SRTM digital elevation model via Open-Meteo.
-- **India CPCB AQI** — Calculated client-side using the official sub-index method (PM2.5 + PM10 breakpoints as per CPCB guidelines). Only shown when coordinates are within India's bounding box.
-
----
-
-
-
-## License
-
-Personal / educational use. All data comes from open, free APIs — see their respective terms:
->>>>>>> 72654aa41c509d14ebe0c71f79f587ee040d1a4e
 - [Open-Meteo Terms](https://open-meteo.com/en/terms)
 - [OpenStreetMap / Nominatim Policy](https://operations.osmfoundation.org/policies/nominatim/)
 - [CartoDB Basemaps](https://carto.com/legal/)
 
 ---
 
-<<<<<<< HEAD
 *Built by VJ — a lightweight geospatial intelligence tool using only free, open data, made to be learned from and built upon.*
-=======
-*Built by VJ — a lightweight geospatial intelligence tool using only free, open data.*
->>>>>>> 72654aa41c509d14ebe0c71f79f587ee040d1a4e
