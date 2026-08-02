@@ -485,8 +485,26 @@ L.control.scale({position:'bottomright',imperial:false}).addTo(map);
    STATE
 ══════════════════════════════════ */
 const $  = id => document.getElementById(id);
-const UA = {'User-Agent':'VJ-GeoIntel/2.0 (github.io)','Accept-Language':'en'};
 const PIPS = ['#00c896','#3b82f6','#f59e0b','#ef4444','#a855f7','#ec4899'];
+
+// OpenStreetMap place names are publicly editable, so escape before any
+// innerHTML injection to close off a crafted-name XSS vector.
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Wrap fetch with an abort-based timeout so one slow/hung API can't leave
+// the panel spinning indefinitely. Default 12s.
+async function fetchT(url, opts = {}, ms = 12000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 let useCelsius  = true;
 let currentData = null;
@@ -630,8 +648,11 @@ async function inspectLocation(lat, lng, zoomTo = false) {
     window.history.pushState({}, '', `?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}`);
   } catch(err) {
     console.error(err);
-    renderError(err.message);
-    setStatus(err.message || 'Acquisition failed', 'err');
+    const msg = err.name === 'AbortError'
+      ? 'Request timed out — a data service is slow. Try again.'
+      : err.message;
+    renderError(msg);
+    setStatus(msg || 'Acquisition failed', 'err');
   }
 }
 
@@ -650,7 +671,7 @@ function renderHistory() {
   $('histList').innerHTML = locHistory.map((h,i) => `
     <div class="hist-item" data-i="${i}">
       <div class="h-pip" style="background:${PIPS[i%PIPS.length]}"></div>
-      <span class="h-name">${h.name}</span>
+      <span class="h-name">${esc(h.name)}</span>
       <span class="h-cord">${h.lat.toFixed(2)}, ${h.lng.toFixed(2)}</span>
     </div>`).join('');
   $('histList').querySelectorAll('.hist-item').forEach(el =>
@@ -670,15 +691,16 @@ $('searchBtn').addEventListener('click', async () => {
   if (!q) { setStatus('Enter a location to search', 'err'); return; }
   setStatus(`Searching "${q}"…`, 'busy');
   try {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=1`,
-      {headers:UA}
+    const r = await fetchT(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&accept-language=en&q=${encodeURIComponent(q)}&limit=1`
     );
     if (!r.ok) throw new Error('Search service unavailable');
     const d = await r.json();
     if (!d.length) throw new Error(`No results for "${q}"`);
     await inspectLocation(+d[0].lat, +d[0].lon, true);
-  } catch(err) { setStatus(err.message, 'err'); }
+  } catch(err) {
+    setStatus(err.name === 'AbortError' ? 'Search timed out — try again' : err.message, 'err');
+  }
 });
 $('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('searchBtn').click(); });
 
@@ -696,14 +718,15 @@ $('locateBtn').addEventListener('click', () => {
    API CALLS — all free, no key
 ══════════════════════════════════ */
 async function fetchLocation(lat, lng) {
-  // Adaptive zoom: street-level first, fallback to district for remote areas
-  const base = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
-  const r = await fetch(base + '&zoom=16', {headers:UA});
+  // Adaptive zoom: street-level first, fallback to district for remote areas.
+  // accept-language as a URL param keeps the request CORS-preflight-free.
+  const base = `https://nominatim.openstreetmap.org/reverse?format=json&accept-language=en&lat=${lat}&lon=${lng}&addressdetails=1`;
+  const r = await fetchT(base + '&zoom=16');
   if (!r.ok) throw new Error('Geocoding service unavailable');
   const d = await r.json();
   const a = d?.address || {};
   if (!(a.road||a.neighbourhood||a.suburb||a.city||a.town||a.village)) {
-    const r2 = await fetch(base + '&zoom=10', {headers:UA});
+    const r2 = await fetchT(base + '&zoom=10');
     if (r2.ok) return r2.json();
   }
   return d;
@@ -711,7 +734,7 @@ async function fetchLocation(lat, lng) {
 
 async function fetchWeather(lat, lng) {
   // Added: visibility, dew_point_2m, wind_gusts_10m, soil_temperature_0cm
-  const r = await fetch(
+  const r = await fetchT(
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
     `&current=temperature_2m,relative_humidity_2m,apparent_temperature,dew_point_2m,` +
     `weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,` +
@@ -725,7 +748,7 @@ async function fetchWeather(lat, lng) {
 }
 
 async function fetchAirQuality(lat, lng) {
-  const r = await fetch(
+  const r = await fetchT(
     `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}` +
     `&current=us_aqi,european_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,dust,ammonia`
   );
@@ -735,7 +758,7 @@ async function fetchAirQuality(lat, lng) {
 
 async function fetchElevation(lat, lng) {
   try {
-    const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`);
+    const r = await fetchT(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`);
     return r.ok ? r.json() : {elevation:[null]};
   } catch { return {elevation:[null]}; }
 }
@@ -781,10 +804,32 @@ const WX = {
   95:['Thunderstorm','⛈️'],96:['Storm + Hail','⛈️'],99:['Severe Storm','⛈️'],
 };
 function wxData(c) { return WX[c] || ['Unknown','❓']; }
-function fmtTime(iso, tz, opts) {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleString('en-US',{timeZone:tz,...opts}); }
-  catch { return String(iso); }
+/*
+ * Open-Meteo (with timezone=auto) returns "current"/"daily" timestamps as
+ * naive local wall-clock strings for the requested location, e.g.
+ * "2026-08-02T14:30" — with NO UTC offset embedded. Feeding that straight
+ * into `new Date(...)` is unreliable: per spec, a date-time string with no
+ * offset is parsed in the *browser's own* local timezone, not the location's.
+ * So a viewer in New York clicking a point in Mumbai would have that string
+ * silently reinterpreted against US Eastern time before being redisplayed —
+ * producing a wrong "Local Time" that only happens to look right when the
+ * viewer's device timezone matches the clicked location's timezone.
+ * Fix: parse the numeric components ourselves and format them as literal
+ * wall-clock values, with zero timezone conversion involved.
+ */
+function parseLocalParts(iso) {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
+  if (!m) return null;
+  const [, y, mo, d, h, mi] = m.map(Number);
+  return { y, mo, d, h, mi, utcStamp: new Date(Date.UTC(y, mo - 1, d, h, mi)) };
+}
+function fmtTime(iso, _tz, opts) {
+  const p = parseLocalParts(iso);
+  if (!p) return iso ? String(iso) : '—';
+  // Format the UTC-encoded stand-in with timeZone:'UTC' so the numbers
+  // that come out are exactly the wall-clock numbers that went in.
+  return p.utcStamp.toLocaleString('en-US', { timeZone: 'UTC', ...opts });
 }
 function fmtDaylight(secs) {
   if (secs == null || isNaN(+secs)) return '—';
@@ -812,22 +857,28 @@ function countryFlag(loc) {
 
 /* ══════════════════════════════════
    INDIA CPCB AQI  (official sub-index method)
-   PM2.5 and PM10 sub-indices; take the maximum
+   Breakpoints per CPCB "National Air Quality Index" Table 3.11
+   (24-hr PM2.5 / PM10, in µg/m³). The Severe band (PM2.5 250+, PM10 430+)
+   is officially open-ended with no upper concentration bound, so any
+   reading at or above that floor is reported as the scale max, AQI 500,
+   rather than an invented linear extrapolation.
+   PM2.5 and PM10 sub-indices are calculated; the maximum is reported.
 ══════════════════════════════════ */
 function calcIndiaAQI(pm25, pm10) {
-  const BP_PM25 = [[0,30,0,50],[30,60,51,100],[60,90,101,200],[90,120,201,300],[120,250,301,400],[250,500,401,500]];
-  const BP_PM10 = [[0,50,0,50],[50,100,51,100],[100,250,101,200],[250,350,201,300],[350,430,301,400],[430,600,401,500]];
+  const BP_PM25 = [[0,30,0,50],[30,60,51,100],[60,90,101,200],[90,120,201,300],[120,250,301,400]];
+  const BP_PM10 = [[0,50,0,50],[50,100,51,100],[100,250,101,200],[250,350,201,300],[350,430,301,400]];
   function si(c, bp) {
     if (c == null || isNaN(+c)) return null;
     const v = +c;
     for (const [cl,ch,il,ih] of bp) {
       if (v >= cl && v <= ch) return Math.round(((ih-il)/(ch-cl))*(v-cl)+il);
     }
-    return v > bp[bp.length-1][1] ? 500 : null;
+    // Above the highest notified breakpoint (open-ended Severe band): cap at 500.
+    return v > bp[bp.length-1][0] ? 500 : null;
   }
   const indices = [si(pm25,BP_PM25), si(pm10,BP_PM10)].filter(v => v !== null);
   if (!indices.length) return null;
-  const aqi = Math.max(...indices);
+  const aqi = Math.min(500, Math.max(...indices));
   let cat, col;
   if      (aqi<=50)  { cat='Good';         col='#22c55e'; }
   else if (aqi<=100) { cat='Satisfactory'; col='#a3e635'; }
@@ -906,7 +957,8 @@ function renderPanel({lat, lng, location, weather, airQuality, elevation}) {
 
   // India-specific
   const indAQI  = calcIndiaAQI(aq.pm2_5, aq.pm10);
-  const month   = new Date(cur.time || Date.now()).getMonth() + 1;
+  const localNow = parseLocalParts(cur.time);
+  const month    = localNow ? localNow.mo : new Date().getMonth() + 1;
   const monsoon = getMonsoon(lat, lng, month);
   const dmsLat  = toDMS(lat, true);
   const dmsLng  = toDMS(lng, false);
@@ -932,23 +984,25 @@ function renderPanel({lat, lng, location, weather, airQuality, elevation}) {
     <div class="ds-grid">
       <div class="tile">
         <div class="t-lbl">Local Time</div>
-        <div class="t-val md">${fmtTime(cur.time,tz,{weekday:'short',hour:'2-digit',minute:'2-digit',hour12:true})}</div>
+        <div class="t-val md" id="localTimeVal">${fmtTime(cur.time,tz,{weekday:'short',hour:'2-digit',minute:'2-digit',hour12:true})}</div>
+      </div>
+      <div class="tile" style="${indAQI ? `border-color:${indAQI.col}33;` : ''}">
+        <div class="t-lbl">India CPCB AQI</div>
+        <div class="t-val" style="${indAQI ? `color:${indAQI.col};` : ''}line-height:1;">${indAQI ? indAQI.aqi : '—'}</div>
+        ${indAQI ? `<span class="aqi-badge" style="background:${indAQI.col}22;color:${indAQI.col};border:1px solid ${indAQI.col}44;">${indAQI.cat}</span>` : ''}
+        <div class="t-sub">PM2.5 + PM10 sub-index</div>
       </div>
       <div class="tile">
-        <div class="t-lbl">Air Quality</div>
+        <div class="t-lbl">US AQI</div>
         <div class="t-val ${aInfo.cls}">${aqi != null ? Math.round(aqi) : '—'}</div>
         ${aqi != null ? `<span class="aqi-badge ${aInfo.badge}">${aInfo.label}</span>` : ''}
-        <div class="t-sub">US AQI standard</div>
+        <div class="t-sub">EPA scale</div>
       </div>
-      ${indAQI ? `
-      <div class="tile w2" style="border-color:${indAQI.col}33;">
-        <div class="t-lbl">India CPCB AQI</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:2px;">
-          <div class="t-val" style="color:${indAQI.col};line-height:1;">${indAQI.aqi}</div>
-          <span class="aqi-badge" style="background:${indAQI.col}22;color:${indAQI.col};border:1px solid ${indAQI.col}44;">${indAQI.cat}</span>
-        </div>
-        <div class="t-sub" style="margin-top:4px;">Based on PM2.5 + PM10 · CPCB sub-index method</div>
-      </div>` : ''}
+      <div class="tile">
+        <div class="t-lbl">EU AQI</div>
+        <div class="t-val md">${eaqi != null ? Math.round(eaqi) : '—'}</div>
+        <div class="t-sub">European scale</div>
+      </div>
     </div>
 
     <div class="ds-lbl">Weather</div>
@@ -1045,14 +1099,31 @@ function renderPanel({lat, lng, location, weather, airQuality, elevation}) {
         <div class="t-lbl">Max Wind Today</div>
         <div class="t-val md">${fmt(windMax,'km/h')}</div>
       </div>
-      ${isIndia ? `
-      <div class="tile w2">
-        <div class="t-lbl">Coordinates (DMS)</div>
-        <div class="t-val sm" style="font-family:var(--mono)">${dmsLat} &ensp; ${dmsLng}</div>
-      </div>` : ''}
     </div>
   `;
+  tickLocalClock();
 }
+
+/* ══════════════════════════════════
+   LIVE LOCAL CLOCK
+   The "Local Time" value above comes from the weather API's latest data
+   snapshot, which only refreshes every so often — so it drifts a few
+   minutes behind the real clock between fetches. This ticker corrects
+   that: it uses the location's utc_offset_seconds (returned fresh with
+   every fetch, DST-correct) against the device's own real-time clock,
+   so the displayed time keeps advancing live and stays accurate to the
+   second, independent of how stale the underlying weather data is.
+══════════════════════════════════ */
+function tickLocalClock() {
+  const el = document.getElementById('localTimeVal');
+  if (!el || !currentData?.weather) return;
+  const offsetSec = currentData.weather.utc_offset_seconds ?? 0;
+  const liveLocal = new Date(Date.now() + offsetSec * 1000);
+  el.textContent = liveLocal.toLocaleString('en-US', {
+    timeZone: 'UTC', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+}
+setInterval(tickLocalClock, 15000);
 </script>
 </body>
 </html>
