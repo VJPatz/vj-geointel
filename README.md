@@ -83,6 +83,8 @@ A few implementation details worth knowing if you're learning from this:
 
 No data source here is a substitute for official government advisories during pollution or weather emergencies — always defer to local authorities for anything safety-critical.
 
+> ⚠️ **Disclaimer:** Data is estimated from third-party models and open datasets — not verified ground-truth. Do not use for safety-critical, medical, aviation, or legal decisions. Values may lag reality by up to an hour and can be wrong, especially in remote areas or during API outages.
+
 ---
 
 ## Run It Locally
