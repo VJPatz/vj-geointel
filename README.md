@@ -92,7 +92,7 @@ No data source here is a substitute for official government advisories during po
 No build step, no dependencies to install:
 
 ```bash
-git clone https://github.com/<your-username>/vj-geointel.git
+git clone https://github.com/VJPatz/vj-geointel.git
 cd vj-geointel
 python3 -m http.server 8000
 # open http://localhost:8000
