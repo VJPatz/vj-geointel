@@ -4,10 +4,9 @@
 
 Zero backend. Zero API keys. Zero build step. One HTML file, deployed on GitHub Pages, running entirely in the browser.
 
-🔗 **Live demo:** [https://vjpatz.github.io/vj-geointel/]
+🔗 **Live demo:** https://vjpatz.github.io/vj-geointel/
 
-
-🎥 **Video walkthrough:** [https://www.youtube.com/watch?v=vAxFM6pwpb4]
+🎥 **Video walkthrough:** https://www.youtube.com/watch?v=vAxFM6pwpb4
 
 ---
 
@@ -29,7 +28,7 @@ VJ-GeoIntel is a single-file HTML application powered by Leaflet.js and free, op
 
 | Feature | Detail |
 |---|---|
-| Map Layers | Dark, Light, Voyager, OpenStreetMap, Satellite, Topographic, Streets + Labels overlay |
+| Map Layers | Dark & Light (Esri Canvas, with auto-matching labels), Voyager (OSM Humanitarian), OpenStreetMap, Satellite, Topographic, Streets + Labels overlay |
 | Search | City name, place name, or raw coordinates |
 | GPS Locate | One-click locate to your current position |
 | °C / °F Toggle | Switch temperature units on the fly; re-renders all values |
@@ -79,11 +78,18 @@ A few implementation details worth knowing if you're learning from this:
 - **Weather & AQI** — [Open-Meteo](https://open-meteo.com), using ERA5 reanalysis + forecast models. Updates roughly hourly.
 - **Geocoding** — [Nominatim](https://nominatim.org) reverse-geocodes coordinates to human-readable names. Street-level for populated areas, district-level fallback for remote regions.
 - **Elevation** — 90m SRTM digital elevation model via Open-Meteo.
+- **Map tiles** — Esri (Dark/Light Canvas, Satellite, Streets), OpenStreetMap (OSM, Voyager/HOT), OpenTopoMap. All keyless. Esri Canvas tops out at zoom 16 and is upscaled beyond that.
 - **India CPCB AQI** — Calculated client-side per the official CPCB sub-index method. Only shown when coordinates fall within India's bounding box.
 
 No data source here is a substitute for official government advisories during pollution or weather emergencies — always defer to local authorities for anything safety-critical.
 
 > ⚠️ **Disclaimer:** Data is estimated from third-party models and open datasets — not verified ground-truth. Do not use for safety-critical, medical, aviation, or legal decisions. Values may lag reality by up to an hour and can be wrong, especially in remote areas or during API outages.
+
+---
+
+## Map Tile Providers
+
+Free tile servers have no SLA and can change terms. CARTO's public basemaps began requiring an API key and returned "API KEY REQUIRED" watermark tiles, so the app moved to Esri Canvas. If a provider breaks again, swap the URLs in the `LAYERS` object. The data panel is unaffected because it uses Open-Meteo and Nominatim, not the tiles.
 
 ---
 
@@ -128,8 +134,11 @@ Pull requests, forks, and "I built X on top of this" shout-outs are all welcome.
 Personal / educational use. All data comes from open, free APIs — respect their individual terms if you build on this:
 - [Open-Meteo Terms](https://open-meteo.com/en/terms)
 - [OpenStreetMap / Nominatim Policy](https://operations.osmfoundation.org/policies/nominatim/)
-- [CartoDB Basemaps](https://carto.com/legal/)
+- [Esri Basemap Terms](https://www.esri.com/en-us/legal/overview)
+- [OSM Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/)
+- [OpenTopoMap](https://opentopomap.org/about)
 
 ---
 
 *Built by VJ — a lightweight geospatial intelligence tool using only free, open data, made to be learned from and built upon.*
+
