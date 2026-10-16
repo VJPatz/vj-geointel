@@ -463,19 +463,24 @@ html,body {
 /* ══════════════════════════════════
    MAP LAYERS
 ══════════════════════════════════ */
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services';
+const esri = (p, o = {}) => L.tileLayer(`${ESRI}/${p}/MapServer/tile/{z}/{y}/{x}`,
+  {attribution:'Tiles © Esri', maxNativeZoom:16, maxZoom:20, ...o});
+
 const LAYERS = {
-  'Dark':          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',            {attribution:'© OpenStreetMap, © CARTO',maxZoom:20,subdomains:'abcd'}),
-  'Light':         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',           {attribution:'© OpenStreetMap, © CARTO',maxZoom:20,subdomains:'abcd'}),
-  'Voyager':       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {attribution:'© OpenStreetMap, © CARTO',maxZoom:20,subdomains:'abcd'}),
-  'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',                       {attribution:'© OpenStreetMap contributors',maxZoom:19}),
-  'Satellite':     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',     {attribution:'Tiles © Esri',maxZoom:19}),
-  'Topographic':   L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',                         {attribution:'© OpenTopoMap',maxZoom:17}),
-  'Streets':       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',  {attribution:'Tiles © Esri',maxZoom:19}),
+  'Dark':          esri('Canvas/World_Dark_Gray_Base'),
+  'Light':         esri('Canvas/World_Light_Gray_Base'),
+  'Voyager':       L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap, HOT',maxZoom:19}),
+  'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',    {attribution:'© OpenStreetMap contributors',maxZoom:19}),
+  'Satellite':     esri('World_Imagery',     {maxNativeZoom:19}),
+  'Topographic':   L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',      {attribution:'© OpenTopoMap',maxZoom:17}),
+  'Streets':       esri('World_Street_Map',  {maxNativeZoom:19}),
 };
-const LABELS_OVR = L.tileLayer(
-  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
-  {attribution:'© CARTO',maxZoom:20,subdomains:'abcd',pane:'overlayPane'}
-);
+const LABELS = {
+  dark:  esri('Canvas/World_Dark_Gray_Reference',  {pane:'overlayPane'}),
+  light: esri('Canvas/World_Light_Gray_Reference', {pane:'overlayPane'}),
+};
+const LABELS_OVR = LABELS.dark; // keeps the layer-control entry working
 
 const map = L.map('map',{center:[20,0],zoom:3,minZoom:2,worldCopyJump:true,layers:[LAYERS['Dark']]});
 L.control.layers(LAYERS,{'Labels overlay':LABELS_OVR},{position:'bottomleft',collapsed:false}).addTo(map);
@@ -517,8 +522,10 @@ let pins        = [];
 ══════════════════════════════════ */
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
-  Object.values(LAYERS).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+  Object.values(LAYERS).forEach(l => map.hasLayer(l) && map.removeLayer(l));
+  Object.values(LABELS).forEach(l => map.hasLayer(l) && map.removeLayer(l));
   LAYERS[t === 'dark' ? 'Dark' : 'Light'].addTo(map);
+  LABELS[t].addTo(map);
   try { localStorage.setItem('vj-theme', t); } catch {}
 }
 (function initTheme() {
